@@ -1,391 +1,3 @@
-// import React, { useEffect, useState, useRef } from "react";
-// import {
-//   View,
-//   Text,
-//   TextInput,
-//   TouchableOpacity,
-//   ScrollView,
-//   Image,
-//   StyleSheet,
-//   SafeAreaView,
-//   KeyboardAvoidingView,
-//   Platform,
-// } from "react-native";
-// import { useRoute, useNavigation } from "@react-navigation/native";
-// import { createSocketConnection } from "../utils/socket";
-// import { useSelector } from "react-redux";
-// import axios from "axios";
-// import { BASE_URL } from "../utils/constants";
-
-// const Chat = () => {
-//   const route = useRoute();
-//   const navigation = useNavigation();
-//   const { targetUserId } = route.params;
-//   const [messages, setMessages] = useState([]);
-//   const [newMessage, setNewMessage] = useState("");
-//   const [isSocketConnected, setIsSocketConnected] = useState(false);
-//   const user = useSelector((store) => store.user);
-//   const userId = user?._id;
-//   const socketRef = useRef(null);
-
-//   const firstName = route.params?.firstName || "";
-//   const lastName = route.params?.lastName || "";
-//   const targetUserName = `${firstName} ${lastName}`.trim() || "User";
- 
-//   const targetUserPhotoUrl =
-//     route.params?.photoUrl ||
-//     "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png";
-
-//   const fetchChatMessages = async () => {
-//     try {
-//       const chat = await axios.get(BASE_URL + "/chat/" + targetUserId, {
-//         withCredentials: true,
-//       });
-
-//       const chatMessages = chat?.data?.messages?.map((msg) => {
-//         const { senderId, text, createdAt } = msg;
-//         return {
-//           firstName: senderId?.firstName,
-//           lastName: senderId?.lastName,
-//           text,
-//           timestamp: createdAt,
-//         };
-//       }) || [];
-      
-//       setMessages(chatMessages);
-//     } catch (error) {
-//       console.error("Error fetching messages:", error);
-//       setMessages([]);
-//     }
-//   };
-
-//   useEffect(() => {
-//     fetchChatMessages();
-//   }, [targetUserId]);
-
-//   useEffect(() => {
-//     if (!userId) return;
-
-//     const socket = createSocketConnection();
-//     socketRef.current = socket;
-
-//     socket.on("connect", () => {
-//       console.log("Socket connected");
-//       setIsSocketConnected(true);
-      
-//       // Join chat room after connection is established
-//       socket.emit("joinChat", {
-//         firstName: user.firstName,
-//         userId,
-//         targetUserId,
-//       });
-//     });
-
-//     socket.on("disconnect", () => {
-//       console.log("Socket disconnected");
-//       setIsSocketConnected(false);
-//     });
-
-//     socket.on("messageReceived", ({ firstName, lastName, text, createdAt }) => {
-//       console.log("Message received:", { firstName, lastName, text, createdAt });
-      
-//       setMessages((prevMessages) => [
-//         ...prevMessages,
-//         { firstName, lastName, text, timestamp: createdAt },
-//       ]);
-//     });
-
-//     // Initial join if already connected
-//     if (socket.connected) {
-//       setIsSocketConnected(true);
-//       socket.emit("joinChat", {
-//         firstName: user.firstName,
-//         userId,
-//         targetUserId,
-//       });
-//     }
-
-//     return () => {
-//       if (socketRef.current) {
-//         socketRef.current.disconnect();
-//         socketRef.current = null;
-//       }
-//       setIsSocketConnected(false);
-//     };
-//   }, [userId, targetUserId, user.firstName]);
-
-//   const sendMessage = () => {
-//     if (!newMessage.trim()) {
-//       console.log("Cannot send empty message");
-//       return;
-//     }
-
-//     const timestamp = new Date().toISOString();
-//     const messageToSend = newMessage.trim();
-    
-//     // Add message optimistically to UI immediately
-//     const optimisticMessage = {
-//       firstName: user.firstName,
-//       lastName: user.lastName,
-//       text: messageToSend,
-//       timestamp: timestamp,
-//     };
-    
-//     setMessages((prevMessages) => [...prevMessages, optimisticMessage]);
-//     setNewMessage("");
-
-//     console.log("Sending message:", {
-//       firstName: user.firstName,
-//       lastName: user.lastName,
-//       userId,
-//       targetUserId,
-//       text: messageToSend,
-//       timestamp,
-//     });
-
-//     // Send message through socket if connected, otherwise just show in UI
-//     if (socketRef.current) {
-//       socketRef.current.emit("sendMessage", {
-//         firstName: user.firstName,
-//         lastName: user.lastName,
-//         userId,
-//         targetUserId,
-//         text: messageToSend,
-//         timestamp,
-//       });
-//     } else {
-//       console.log("Socket not available, message shown locally only");
-//     }
-//   };
-
-//   const formatTimestamp = (timestamp) => {
-//     if (!timestamp) return "";
-//     const date = new Date(timestamp);
-//     return `${date.getHours()}:${date.getMinutes().toString().padStart(2, "0")}`;
-//   };
-
-//   const handleBackPress = () => {
-//     navigation.goBack();
-//   };
-
-//   return (
-//     <SafeAreaView style={styles.container}>
-//       <KeyboardAvoidingView 
-//         style={styles.keyboardAvoidingView}
-//         behavior={Platform.OS === "ios" ? "padding" : "height"}
-//       >
-//         {/* Header */}
-//         <View style={styles.header}>
-//           <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
-//             <Text style={styles.backButtonText}>←</Text>
-//           </TouchableOpacity>
-//           <Image
-//             source={{ uri: targetUserPhotoUrl }}
-//             style={styles.profileImage}
-//           />
-//           <Text style={styles.headerTitle}>{targetUserName}</Text>
-//           {/* Connection status indicator */}
-//           <View style={[
-//             styles.statusDot, 
-//             { backgroundColor: isSocketConnected ? '#4CAF50' : '#f44336' }
-//           ]} />
-//         </View>
-
-//         {/* Messages Container */}
-//         <ScrollView 
-//           style={styles.messagesContainer}
-//           contentContainerStyle={styles.messagesContent}
-//           showsVerticalScrollIndicator={false}
-//         >
-//           {messages.map((msg, index) => {
-//             const isMyMessage = user.firstName === msg.firstName;
-//             return (
-//               <View
-//                 key={index}
-//                 style={[
-//                   styles.messageWrapper,
-//                   isMyMessage ? styles.myMessageWrapper : styles.theirMessageWrapper
-//                 ]}
-//               >
-//                 <View style={[
-//                   styles.messageBubble,
-//                   isMyMessage ? styles.myMessageBubble : styles.theirMessageBubble
-//                 ]}>
-//                   <Text style={[
-//                     styles.messageText,
-//                     isMyMessage ? styles.myMessageText : styles.theirMessageText
-//                   ]}>
-//                     {msg.text}
-//                   </Text>
-//                   <Text style={[
-//                     styles.timestampText,
-//                     isMyMessage ? styles.myTimestampText : styles.theirTimestampText
-//                   ]}>
-//                     {formatTimestamp(msg.timestamp)}
-//                   </Text>
-//                 </View>
-//               </View>
-//             );
-//           })}
-//         </ScrollView>
-
-//         {/* Input Container */}
-//         <View style={styles.inputContainer}>
-//           <TextInput
-//             value={newMessage}
-//             onChangeText={setNewMessage}
-//             style={styles.textInput}
-//             placeholder="Type a message..."
-//             placeholderTextColor="#999"
-//             multiline
-//             maxLength={1000}
-//           />
-//           <TouchableOpacity 
-//             onPress={sendMessage} 
-//             style={[
-//               styles.sendButton,
-//               !newMessage.trim() && styles.sendButtonDisabled
-//             ]}
-//             disabled={!newMessage.trim()}
-//           >
-//             <Text style={styles.sendButtonText}>Send</Text>
-//           </TouchableOpacity>
-//         </View>
-//       </KeyboardAvoidingView>
-//     </SafeAreaView>
-//   );
-// };
-
-// const styles = StyleSheet.create({
-//   container: {
-//     flex: 1,
-//     backgroundColor: '#fff',
-//   },
-//   keyboardAvoidingView: {
-//     flex: 1,
-//   },
-//   header: {
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//     padding: 20,
-//     borderBottomWidth: 1,
-//     borderBottomColor: '#666',
-//     gap: 16,
-//   },
-//   backButton: {
-//     paddingRight: 8,
-//   },
-//   backButtonText: {
-//     fontSize: 24,
-//     color: '#007AFF',
-//     fontWeight: '600',
-//   },
-//   profileImage: {
-//     width: 40,
-//     height: 40,
-//     borderRadius: 20,
-//   },
-//   headerTitle: {
-//     fontSize: 18,
-//     fontWeight: '600',
-//     color: '#000',
-//     flex: 1,
-//   },
-//   statusDot: {
-//     width: 8,
-//     height: 8,
-//     borderRadius: 4,
-//   },
-//   messagesContainer: {
-//     flex: 1,
-//     paddingHorizontal: 8,
-//   },
-//   messagesContent: {
-//     paddingVertical: 8,
-//   },
-//   messageWrapper: {
-//     marginVertical: 4,
-//   },
-//   myMessageWrapper: {
-//     alignItems: 'flex-end',
-//   },
-//   theirMessageWrapper: {
-//     alignItems: 'flex-start',
-//   },
-//   messageBubble: {
-//     maxWidth: '80%',
-//     padding: 12,
-//     borderRadius: 18,
-//     flexDirection: 'row',
-//     alignItems: 'flex-end',
-//     justifyContent: 'space-between',
-//   },
-//   myMessageBubble: {
-//     backgroundColor: '#007AFF',
-//     borderBottomRightRadius: 4,
-//   },
-//   theirMessageBubble: {
-//     backgroundColor: '#E5E5EA',
-//     borderBottomLeftRadius: 4,
-//   },
-//   messageText: {
-//     fontSize: 16,
-//     flex: 1,
-//     marginRight: 8,
-//   },
-//   myMessageText: {
-//     color: '#fff',
-//   },
-//   theirMessageText: {
-//     color: '#000',
-//   },
-//   timestampText: {
-//     fontSize: 12,
-//     opacity: 0.7,
-//   },
-//   myTimestampText: {
-//     color: '#fff',
-//   },
-//   theirTimestampText: {
-//     color: '#000',
-//   },
-//   inputContainer: {
-//     flexDirection: 'row',
-//     alignItems: 'flex-end',
-//     padding: 20,
-//     borderTopWidth: 1,
-//     borderTopColor: '#666',
-//     gap: 8,
-//   },
-//   textInput: {
-//     flex: 1,
-//     borderWidth: 1,
-//     borderColor: '#666',
-//     color: '#000',
-//     borderRadius: 8,
-//     padding: 8,
-//     maxHeight: 100,
-//     fontSize: 16,
-//   },
-//   sendButton: {
-//     backgroundColor: '#6366f1',
-//     paddingHorizontal: 16,
-//     paddingVertical: 8,
-//     borderRadius: 8,
-//     justifyContent: 'center',
-//     alignItems: 'center',
-//   },
-//   sendButtonDisabled: {
-//     backgroundColor: '#ccc',
-//   },
-//   sendButtonText: {
-//     color: '#fff',
-//     fontSize: 16,
-//     fontWeight: '500',
-//   },
-// });
-
-// export default Chat;import React, { useEffect, useState } from "react";
 import React, { useEffect, useState } from "react";
 import { 
   View, 
@@ -397,17 +9,21 @@ import {
   SafeAreaView,
   KeyboardAvoidingView,
   Platform,
-  Alert
+  Alert,
+  ActivityIndicator
 } from "react-native";
 import { useRoute, useNavigation } from "@react-navigation/native";
 import socket from "../utils/socket.js";
 import { useSelector } from "react-redux";
+import axios from "axios";
+import { BASE_URL } from "../utils/constants"; // Make sure this is imported
 
 const ChatScreen = () => {
   const [text, setText] = useState("");
   const [messages, setMessages] = useState([]);
   const [isConnected, setIsConnected] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const route = useRoute();
   const navigation = useNavigation();
   
@@ -415,6 +31,7 @@ const ChatScreen = () => {
   
   // Get currentUserId from multiple sources with proper fallback
   const authUserId = useSelector((state) => state.user?.user?.id || state.user?.user?._id);
+  const authToken = useSelector((state) => state.auth?.token || state.user?.token);
   const currentUserId = userId || authUserId;
 
   // Debug logging to help identify the issue
@@ -426,7 +43,89 @@ const ChatScreen = () => {
     console.log("  - targetUserId:", targetUserId);
     console.log("  - firstName:", firstName);
     console.log("  - lastName:", lastName);
-  }, [userId, authUserId, currentUserId, targetUserId, firstName, lastName]);
+    console.log("  - authToken:", authToken ? "Available" : "Not available");
+  }, [userId, authUserId, currentUserId, targetUserId, firstName, lastName, authToken]);
+
+  // Fetch chat history function
+  const fetchChatHistory = async () => {
+    if (!currentUserId || !targetUserId) {
+      console.log("⚠️ Missing user IDs for fetching history");
+      setIsLoadingHistory(false);
+      return;
+    }
+
+    try {
+      console.log("📥 Fetching chat history between:", currentUserId, "and", targetUserId);
+      setIsLoadingHistory(true);
+      
+      const headers = {
+        'Content-Type': 'application/json',
+      };
+      
+      // Only add Authorization header if token exists
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+      }
+      
+      const response = await axios.get(
+        `${BASE_URL}/history/${targetUserId}`,
+        {
+          withCredentials: true,
+          headers
+        }
+      );
+      
+      console.log("📥 Chat history received:", response.data);
+      
+      if (response.data && response.data.messages) {
+        // Messages are already sorted by timestamp from backend
+        setMessages(response.data.messages);
+        console.log(`📥 Loaded ${response.data.messages.length} historical messages`);
+        
+        // Optional: Mark messages as read
+        // markMessagesAsRead();
+      } else {
+        console.log("📥 No chat history found");
+        setMessages([]);
+      }
+    } catch (error) {
+      console.error("❌ Error fetching chat history:", error);
+      
+      // More detailed error handling
+      if (error.response) {
+        console.error("Response error:", error.response.data);
+        Alert.alert(
+          "Error", 
+          error.response.data?.error || "Failed to load chat history",
+          [{ text: "OK" }]
+        );
+      } else if (error.request) {
+        console.error("Network error:", error.request);
+        Alert.alert(
+          "Network Error", 
+          "Unable to connect to server. Please check your internet connection.",
+          [{ text: "OK" }]
+        );
+      } else {
+        console.error("Error:", error.message);
+        Alert.alert(
+          "Error", 
+          "An unexpected error occurred while loading chat history.",
+          [{ text: "OK" }]
+        );
+      }
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
+  
+ 
+  useEffect(() => {
+    if (currentUserId && targetUserId) {
+      fetchChatHistory();
+    }
+  }, [currentUserId, targetUserId]);
 
   useEffect(() => {
     console.log("🟡 Initializing chat...");
@@ -481,12 +180,22 @@ const ChatScreen = () => {
     // Listen for incoming messages (ONLY from server, not local)
     socket.on("messageReceived", (message) => {
       console.log("📨 Received message from server:", message);
+      
+      // Create a properly formatted message object
+      const formattedMessage = {
+        id: message.id || message._id || Date.now() + Math.random(),
+        text: message.text || message.message,
+        senderId: message.senderId,
+        firstName: message.firstName || message.senderName,
+        lastName: message.lastName || message.senderLastName || '',
+        timestamp: message.timestamp || new Date().toISOString(),
+        isRead: message.isRead || false,
+        status: message.status || 'delivered'
+      };
+      
       // Only add if it's not from current user (to avoid duplicates)
-      if (message.senderId !== currentUserId) {
-        setMessages(prev => [...prev, {
-          ...message,
-          id: Date.now() + Math.random() // Add unique ID
-        }]);
+      if (formattedMessage.senderId !== currentUserId) {
+        setMessages(prev => [...prev, formattedMessage]);
       }
     });
 
@@ -526,7 +235,7 @@ const ChatScreen = () => {
     const messageData = {
       firstName,
       lastName,
-      userId: currentUserId, // Make sure this is not undefined
+      userId: currentUserId,
       targetUserId,
       text: text.trim(),
     };
@@ -542,12 +251,14 @@ const ChatScreen = () => {
     
     // Add message to local state immediately (for sender's view)
     const localMessage = {
+      id: Date.now() + Math.random(),
       firstName,
       lastName,
       text: text.trim(),
       senderId: currentUserId,
       timestamp: new Date().toISOString(),
-      id: Date.now() + Math.random()
+      isRead: false,
+      status: 'sent'
     };
     
     setMessages(prev => [...prev, localMessage]);
@@ -587,12 +298,15 @@ const ChatScreen = () => {
     </View>
   );
 
-  // Show loading state if currentUserId is not available
-  if (!currentUserId) {
+  // Show loading state if currentUserId is not available or loading history
+  if (!currentUserId || isLoadingHistory) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading user information...</Text>
+          <ActivityIndicator size="large" color="#007AFF" />
+          <Text style={styles.loadingText}>
+            {!currentUserId ? "Loading user information..." : "Loading chat history..."}
+          </Text>
         </View>
       </SafeAreaView>
     );
@@ -622,18 +336,24 @@ const ChatScreen = () => {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         {/* Messages List */}
-        <FlatList
-          data={messages}
-          keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
-          renderItem={renderMessage}
-          style={styles.messagesList}
-          contentContainerStyle={styles.messagesContainer}
-          showsVerticalScrollIndicator={false}
-          inverted={false}
-          onContentSizeChange={() => {
-            // Auto scroll to bottom when new message arrives
-          }}
-        />
+        {messages.length === 0 && !isLoadingHistory ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>No messages yet. Start the conversation!</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={messages}
+            keyExtractor={(item) => item.id?.toString() || item._id?.toString() || Math.random().toString()}
+            renderItem={renderMessage}
+            style={styles.messagesList}
+            contentContainerStyle={styles.messagesContainer}
+            showsVerticalScrollIndicator={false}
+            inverted={false}
+            onContentSizeChange={() => {
+              // Auto scroll to bottom when new message arrives
+            }}
+          />
+        )}
 
         {/* Input Container */}
         <View style={styles.inputContainer}>
@@ -684,6 +404,18 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 16,
     color: '#666',
+    marginTop: 10,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#999',
+    textAlign: 'center',
   },
   header: {
     flexDirection: 'row',
