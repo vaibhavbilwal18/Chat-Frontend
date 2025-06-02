@@ -15,6 +15,7 @@ import { fetchUsers } from '../utils/usersSlice';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { ProfileScreen } from '.src/screen/ProfileScreen';
 
 const ChatHome = () => {
   const dispatch = useDispatch();
@@ -26,17 +27,19 @@ const ChatHome = () => {
   // Enhanced debugging for Redux state
   const userState = useSelector((state) => state.user); // Changed from 'auth' to 'user'
   const currentUserId = useSelector((state) => state.user?.user?.id || state.user?.user?._id);
+  const currentUser = useSelector((state) => state.user?.user); // Get current user data
 
   // Debug logging
   useEffect(() => {
     console.log("🔍 ChatHome - User State Debug:");
     console.log("  - Full user state:", JSON.stringify(userState, null, 2));
     console.log("  - currentUserId:", currentUserId);
+    console.log("  - currentUser:", currentUser);
     console.log("  - state.user:", userState);
     console.log("  - state.user.user:", userState?.user);
     console.log("  - state.user.user?.id:", userState?.user?.id);
     console.log("  - state.user.user?._id:", userState?.user?._id);
-  }, [userState, currentUserId]);
+  }, [userState, currentUserId, currentUser]);
 
   useEffect(() => {
     dispatch(fetchUsers());
@@ -53,6 +56,25 @@ const ChatHome = () => {
       return fullName.includes(lowerCaseQuery);
     });
   }, [users, searchQuery]);
+
+  const handleProfilePress = () => {
+    console.log("🔍 Navigating to profile with current user:", currentUser);
+    
+    if (!currentUser) {
+      Alert.alert(
+        "Error", 
+        "Unable to load profile. Please try again.",
+        [{ text: "OK", style: "default" }]
+      );
+      return;
+    }
+
+    // Navigate to ProfileScreen - adjust the screen name based on your navigation setup
+    navigation.navigate('ProfileScreen', { 
+      user: currentUser,
+      isCurrentUser: true 
+    });
+  };
  
   const handleChatOpen = (user) => {
     console.log("🔍 ChatHome Debug - Opening chat with:");
@@ -105,7 +127,7 @@ const ChatHome = () => {
     >
       <Image
         source={{
-          uri: item.avatar || 'https://via.placeholder.com/150/F0F0F0/919191?text=👤',
+          uri: item.photoUrl || 'https://via.placeholder.com/150/F0F0F0/919191?text=👤',
         }}
         style={styles.avatar}
       />
@@ -121,8 +143,25 @@ const ChatHome = () => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        <Text style={styles.header}>Chats X</Text>
-
+        {/* Header with title and profile image */}
+        <View style={styles.headerContainer}>
+          <Text style={styles.header}>Chats X</Text>
+          <TouchableOpacity 
+            style={styles.profileImageContainer} 
+            onPress={handleProfilePress}
+            activeOpacity={0.8}
+          >
+            <Image
+              source={{
+                uri: currentUser?.photoUrl || 
+                     currentUser?.avatar || 
+                     'https://via.placeholder.com/150/F0F0F0/919191?text=👤',
+              }}
+              style={styles.profileImage}
+            />
+          </TouchableOpacity>
+        </View>
+        
         <TextInput
           style={styles.searchBar}
           placeholder="Search by name..."
@@ -166,13 +205,41 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F7F7F7',
   },
+  headerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginBottom: 20,
+    marginTop: 10,
+  },
   header: {
     fontSize: 30,
     fontWeight: '700',
     color: '#1A1A1A',
-    paddingHorizontal: 20,
-    marginBottom: 20,
-    marginTop: 10,
+    flex: 1,
+  },
+  profileImageContainer: {
+    marginLeft: 15,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
+  },
+  profileImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#E0E0E0',
+    borderColor: '#FFFFFF',
+    borderWidth: 2,
   },
   searchBar: {
     height: 50,

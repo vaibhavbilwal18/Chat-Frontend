@@ -11,7 +11,7 @@
 import io from 'socket.io-client';
 
 // Replace with your actual server URL
-const SOCKET_URL = 'http://192.168.1.11:7777'; // Use your computer's IP address for mobile testing
+const SOCKET_URL = 'http://192.168.1.102:7777'; // Use your computer's IP address for mobile testing
 // For Android emulator, use: 'http://10.0.2.2:3000'
 // For iOS simulator, use: 'http://localhost:3000'
 
